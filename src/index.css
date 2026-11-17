@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* Cores, fontes e cantos do site — mude aqui e o site inteiro acompanha. */
+@theme {
+  --color-primary: #6F3A24;
+  --color-accent: #D4956A;
+  --color-background: #FDF6EE;
+  --color-foreground: #2C1810;
+  --color-muted: color-mix(in oklab, var(--color-foreground) 6%, var(--color-background));
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Fraunces", ui-serif, Georgia, serif;
+  --radius-site: 1rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
