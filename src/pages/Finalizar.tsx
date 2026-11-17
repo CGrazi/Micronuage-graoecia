@@ -8,10 +8,13 @@ import { submitLead } from "@/lib/micronuage";
 import { payments } from "@micronuage/sdk";
 
 const input = "h-12 w-full rounded-site border border-current/20 bg-transparent px-4 outline-none focus:border-primary";
+const inputError = "h-12 w-full rounded-site border border-red-500 bg-transparent px-4 outline-none focus:border-red-600";
 
 function formatPrice(cents: number): string {
   return "R$ " + (cents / 100).toFixed(2).replace(".", ",");
 }
+
+type FieldKey = "name" | "email" | "zip" | "address" | "city" | "state";
 
 export default function FinalizarPage() {
   const { items, total, clearCart } = useCart();
@@ -19,6 +22,7 @@ export default function FinalizarPage() {
   const checkoutResult = searchParams.get("checkout");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [stripeError, setStripeError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -32,9 +36,36 @@ export default function FinalizarPage() {
     website: ""
   });
 
+  function setField(key: keyof typeof form, value: string) {
+    setForm({ ...form, [key]: value });
+    if (key in fieldErrors) setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  /** Modo teste: campos opcionais. Peça "voltar ao normal" para restaurar a validação obrigatória. */
+  function validate(): Partial<Record<FieldKey, string>> {
+    const errors: Partial<Record<FieldKey, string>> = {};
+    if (!form.name.trim()) errors.name = "Informe seu nome completo.";
+    if (!form.email.trim()) errors.email = "Informe seu e-mail.";
+    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = "Informe um e-mail válido.";
+    if (!form.address.trim()) errors.address = "Informe o endereço de entrega.";
+    if (!form.city.trim()) errors.city = "Informe a cidade.";
+    if (!form.state.trim()) errors.state = "Informe o estado (UF).";
+    if (!form.zip.trim()) errors.zip = "Informe o CEP.";
+    return errors;
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (form.website) return;
+    if (items.length === 0) return;
+
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) {
+      setStatus("error");
+      return;
+    }
+
     setStatus("sending");
     setStripeError("");
 
@@ -42,14 +73,14 @@ export default function FinalizarPage() {
 
     try {
       await submitLead({
-        name: form.name || "Teste",
-        email: form.email || "teste@teste.com",
+        name: form.name,
+        email: form.email,
         phone: form.phone || undefined,
-        message: `Pedido: ${itemsSummary}. Total: ${formatPrice(total)}. Entrega: ${form.address || "—"}, ${form.city || "—"}/${form.state || "—"}, CEP ${form.zip || "—"}. Pagamento: ${form.payment}. ${form.notes}`,
+        message: `Pedido: ${itemsSummary}. Total: ${formatPrice(total)}. Entrega: ${form.address}, ${form.city}/${form.state}, CEP ${form.zip}. Pagamento: ${form.payment}. ${form.notes}`,
         fields: {
           "Itens": itemsSummary,
           "Total": formatPrice(total),
-          "Endereço": `${form.address || "—"}, ${form.city || "—"}/${form.state || "—"}, CEP ${form.zip || "—"}`,
+          "Endereço": `${form.address}, ${form.city}/${form.state}, CEP ${form.zip}`,
           "Pagamento": form.payment,
           "Observações": form.notes
         },
@@ -70,8 +101,9 @@ export default function FinalizarPage() {
 
       clearCart();
       setStatus("sent");
-    } catch {
+    } catch (err: unknown) {
       setStatus("error");
+      setStripeError(err instanceof Error ? err.message : site.ui.error);
     }
   }
 
@@ -121,7 +153,7 @@ export default function FinalizarPage() {
               <p className="mt-4 rounded-site border border-red-600/30 bg-red-50 p-4 text-red-800">{stripeError}</p>
             )}
             <p className="mt-4 text-lg opacity-75">
-              Obrigado, {(form.name || "cliente").split(" ")[0]}! Recebemos seu pedido e entraremos em contato pelo e-mail ou telefone informado para confirmar o pagamento e o envio.
+              Obrigado, {form.name.split(" ")[0]}! Recebemos seu pedido e entraremos em contato pelo e-mail ou telefone informado para confirmar o pagamento e o envio.
             </p>
             <ButtonLink href="/catalogo" className="mt-8">Voltar ao catálogo</ButtonLink>
           </div>
@@ -129,6 +161,9 @@ export default function FinalizarPage() {
       </>
     );
   }
+
+  const errorText = (key: FieldKey) =>
+    fieldErrors[key] ? <p className="mt-1 text-sm text-red-600">{fieldErrors[key]}</p> : null;
 
   return (
     <>
@@ -155,44 +190,56 @@ export default function FinalizarPage() {
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_320px]">
           {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <input type="text" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+
+            {status === "error" && Object.values(fieldErrors).some(Boolean) && (
+              <p className="rounded-site border border-red-600/30 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Confira os campos destacados abaixo para confirmar o pedido.
+              </p>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="name" className="mb-1 block text-sm font-medium">Nome completo</label>
-                <input id="name" className={input} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <input id="name" className={fieldErrors.name ? inputError : input} autoComplete="name" value={form.name} onChange={(e) => setField("name", e.target.value)} />
+                {errorText("name")}
               </div>
               <div>
                 <label htmlFor="email" className="mb-1 block text-sm font-medium">E-mail</label>
-                <input id="email" type="email" className={input} autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <input id="email" type="email" className={fieldErrors.email ? inputError : input} autoComplete="email" value={form.email} onChange={(e) => setField("email", e.target.value)} />
+                {errorText("email")}
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="phone" className="mb-1 block text-sm font-medium">Telefone / WhatsApp</label>
-                <input id="phone" type="tel" className={input} autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <input id="phone" type="tel" className={input} autoComplete="tel" value={form.phone} onChange={(e) => setField("phone", e.target.value)} />
               </div>
               <div>
                 <label htmlFor="zip" className="mb-1 block text-sm font-medium">CEP</label>
-                <input id="zip" className={input} autoComplete="postal-code" value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} />
+                <input id="zip" className={fieldErrors.zip ? inputError : input} autoComplete="postal-code" value={form.zip} onChange={(e) => setField("zip", e.target.value)} />
+                {errorText("zip")}
               </div>
             </div>
 
             <div>
               <label htmlFor="address" className="mb-1 block text-sm font-medium">Endereço (rua e número)</label>
-              <input id="address" className={input} autoComplete="street-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <input id="address" className={fieldErrors.address ? inputError : input} autoComplete="street-address" value={form.address} onChange={(e) => setField("address", e.target.value)} />
+              {errorText("address")}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="city" className="mb-1 block text-sm font-medium">Cidade</label>
-                <input id="city" className={input} autoComplete="address-level2" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <input id="city" className={fieldErrors.city ? inputError : input} autoComplete="address-level2" value={form.city} onChange={(e) => setField("city", e.target.value)} />
+                {errorText("city")}
               </div>
               <div>
                 <label htmlFor="state" className="mb-1 block text-sm font-medium">Estado</label>
-                <input id="state" className={input} placeholder="SP" autoComplete="address-level1" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                <input id="state" className={fieldErrors.state ? inputError : input} placeholder="SP" autoComplete="address-level1" value={form.state} onChange={(e) => setField("state", e.target.value)} />
+                {errorText("state")}
               </div>
             </div>
 
@@ -207,14 +254,13 @@ export default function FinalizarPage() {
 
             <div>
               <label htmlFor="notes" className="mb-1 block text-sm font-medium">Observações</label>
-              <textarea id="notes" rows={3} className={input + " h-auto py-3"} placeholder="Ex.: moer para V60, entregar no período da tarde…" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <textarea id="notes" rows={3} className={input + " h-auto py-3"} placeholder="Ex.: moer para V60, entregar no período da tarde…" value={form.notes} onChange={(e) => setField("notes", e.target.value)} />
             </div>
 
             <button type="submit" disabled={status === "sending"} className="h-12 w-full rounded-site bg-primary font-medium text-white hover:opacity-90 disabled:opacity-60">
               {status === "sending" ? "Enviando…" : "Confirmar pedido"}
             </button>
-            {status === "error" && <p className="text-sm text-red-600">{site.ui.error}</p>}
-            {stripeError && <p className="text-sm text-red-600">{stripeError}</p>}
+            {status === "error" && <p className="text-sm text-red-600">{stripeError || site.ui.error}</p>}
           </form>
 
           {/* Resumo do pedido */}
