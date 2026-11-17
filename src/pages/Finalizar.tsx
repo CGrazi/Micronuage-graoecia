@@ -14,9 +14,6 @@ function formatPrice(cents: number): string {
   return "R$ " + (cents / 100).toFixed(2).replace(".", ",");
 }
 
-/** Modo teste: permite enviar o pedido sem preencher os dados. Mude para false para voltar ao normal. */
-const TEST_MODE = true;
-
 type FieldKey = "name" | "email" | "zip" | "address" | "city" | "state";
 
 export default function FinalizarPage() {
@@ -47,7 +44,6 @@ export default function FinalizarPage() {
   /** Campos obrigatórios: nome, e-mail, endereço, cidade, estado e CEP. */
   function validate(): Partial<Record<FieldKey, string>> {
     const errors: Partial<Record<FieldKey, string>> = {};
-    if (TEST_MODE) return errors;
     if (!form.name.trim()) errors.name = "Informe seu nome completo.";
     if (!form.email.trim()) errors.email = "Informe seu e-mail.";
     else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = "Informe um e-mail válido.";
@@ -77,8 +73,8 @@ export default function FinalizarPage() {
 
     try {
       await submitLead({
-        name: form.name.trim() || (TEST_MODE ? "Cliente (teste)" : form.name),
-        email: form.email.trim() || (TEST_MODE ? "teste@example.com" : form.email),
+        name: form.name,
+        email: form.email,
         phone: form.phone || undefined,
         message: `Pedido: ${itemsSummary}. Total: ${formatPrice(total)}. Entrega: ${form.address}, ${form.city}/${form.state}, CEP ${form.zip}. Pagamento: ${form.payment}. ${form.notes}`,
         fields: {
@@ -157,7 +153,7 @@ export default function FinalizarPage() {
               <p className="mt-4 rounded-site border border-red-600/30 bg-red-50 p-4 text-red-800">{stripeError}</p>
             )}
             <p className="mt-4 text-lg opacity-75">
-              Obrigado{form.name.trim() ? ", " + form.name.trim().split(" ")[0] : ""}! Recebemos seu pedido e entraremos em contato pelo e-mail ou telefone informado para confirmar o pagamento e o envio.
+              Obrigado, {form.name.split(" ")[0]}! Recebemos seu pedido e entraremos em contato pelo e-mail ou telefone informado para confirmar o pagamento e o envio.
             </p>
             <ButtonLink href="/catalogo" className="mt-8">Voltar ao catálogo</ButtonLink>
           </div>
@@ -175,11 +171,6 @@ export default function FinalizarPage() {
       <meta name="description" content="Finalize seu pedido de cafés especiais na Grão & Cia." />
       <Section>
         <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Finalizar pedido</h1>
-        {TEST_MODE && (
-          <p className="mt-4 rounded-site border border-amber-600/30 bg-amber-50 p-4 text-sm text-amber-800">
-            Modo teste: você pode confirmar o pedido sem preencher os dados.
-          </p>
-        )}
 
         {checkoutResult === "success" && (
           <p className="mt-4 rounded-site border border-green-600/30 bg-green-50 p-4 text-green-800">
