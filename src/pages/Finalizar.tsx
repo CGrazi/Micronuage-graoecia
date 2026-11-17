@@ -41,7 +41,7 @@ export default function FinalizarPage() {
     if (key in fieldErrors) setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
-  /** Modo teste: campos opcionais. Peça "voltar ao normal" para restaurar a validação obrigatória. */
+  /** Campos obrigatórios: nome, e-mail, endereço, cidade, estado e CEP. */
   function validate(): Partial<Record<FieldKey, string>> {
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!form.name.trim()) errors.name = "Informe seu nome completo.";
@@ -170,11 +170,6 @@ export default function FinalizarPage() {
       <title>{"Finalizar pedido · Grão & Cia"}</title>
       <meta name="description" content="Finalize seu pedido de cafés especiais na Grão & Cia." />
       <Section>
-        {/* Banner de modo teste */}
-        <div className="mb-8 rounded-site border border-amber-500/40 bg-amber-50 px-5 py-3 text-center text-sm font-medium text-amber-800">
-          Modo teste — campos opcionais. Peça "voltar ao normal" para restaurar a validação.
-        </div>
-
         <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Finalizar pedido</h1>
 
         {checkoutResult === "success" && (
@@ -201,12 +196,12 @@ export default function FinalizarPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="name" className="mb-1 block text-sm font-medium">Nome completo</label>
+                <label htmlFor="name" className="mb-1 block text-sm font-medium">Nome completo *</label>
                 <input id="name" className={fieldErrors.name ? inputError : input} autoComplete="name" value={form.name} onChange={(e) => setField("name", e.target.value)} />
                 {errorText("name")}
               </div>
               <div>
-                <label htmlFor="email" className="mb-1 block text-sm font-medium">E-mail</label>
+                <label htmlFor="email" className="mb-1 block text-sm font-medium">E-mail *</label>
                 <input id="email" type="email" className={fieldErrors.email ? inputError : input} autoComplete="email" value={form.email} onChange={(e) => setField("email", e.target.value)} />
                 {errorText("email")}
               </div>
@@ -218,26 +213,26 @@ export default function FinalizarPage() {
                 <input id="phone" type="tel" className={input} autoComplete="tel" value={form.phone} onChange={(e) => setField("phone", e.target.value)} />
               </div>
               <div>
-                <label htmlFor="zip" className="mb-1 block text-sm font-medium">CEP</label>
+                <label htmlFor="zip" className="mb-1 block text-sm font-medium">CEP *</label>
                 <input id="zip" className={fieldErrors.zip ? inputError : input} autoComplete="postal-code" value={form.zip} onChange={(e) => setField("zip", e.target.value)} />
                 {errorText("zip")}
               </div>
             </div>
 
             <div>
-              <label htmlFor="address" className="mb-1 block text-sm font-medium">Endereço (rua e número)</label>
+              <label htmlFor="address" className="mb-1 block text-sm font-medium">Endereço (rua e número) *</label>
               <input id="address" className={fieldErrors.address ? inputError : input} autoComplete="street-address" value={form.address} onChange={(e) => setField("address", e.target.value)} />
               {errorText("address")}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="city" className="mb-1 block text-sm font-medium">Cidade</label>
+                <label htmlFor="city" className="mb-1 block text-sm font-medium">Cidade *</label>
                 <input id="city" className={fieldErrors.city ? inputError : input} autoComplete="address-level2" value={form.city} onChange={(e) => setField("city", e.target.value)} />
                 {errorText("city")}
               </div>
               <div>
-                <label htmlFor="state" className="mb-1 block text-sm font-medium">Estado</label>
+                <label htmlFor="state" className="mb-1 block text-sm font-medium">Estado *</label>
                 <input id="state" className={fieldErrors.state ? inputError : input} placeholder="SP" autoComplete="address-level1" value={form.state} onChange={(e) => setField("state", e.target.value)} />
                 {errorText("state")}
               </div>
